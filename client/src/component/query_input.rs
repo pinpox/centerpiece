@@ -31,11 +31,14 @@ impl iced::widget::text_input::StyleSheet for Style {
     type Style = iced::Theme;
 
     fn active(&self, _style: &Self::Style) -> iced::widget::text_input::Appearance {
+        use iced::color;
         iced::widget::text_input::Appearance {
             background: iced::Background::Color(iced::Color::TRANSPARENT),
-            border_radius: iced::BorderRadius::from(0.),
-            border_width: 0.,
-            border_color: iced::Color::TRANSPARENT,
+            border: iced::Border {
+                color: iced::Color::TRANSPARENT,
+                width: 0.,
+                radius: iced::border::Radius::from(0.),
+            },
             icon_color: iced::color!(0xf3f3f3, 1.),
         }
     }
@@ -49,22 +52,22 @@ impl iced::widget::text_input::StyleSheet for Style {
     }
 
     fn placeholder_color(&self, _style: &Self::Style) -> iced::Color {
-        let color_settings = crate::settings::Settings::new();
+        let color_settings = crate::settings::Settings::get_or_init();
         crate::settings::hexcolor(&color_settings.color.surface)
     }
 
     fn value_color(&self, _style: &Self::Style) -> iced::Color {
-        let color_settings = crate::settings::Settings::new();
+        let color_settings = crate::settings::Settings::get_or_init();
         crate::settings::hexcolor(&color_settings.color.text)
     }
 
     fn disabled_color(&self, _style: &Self::Style) -> iced::Color {
-        let color_settings = crate::settings::Settings::new();
+        let color_settings = crate::settings::Settings::get_or_init();
         crate::settings::hexcolor(&color_settings.color.surface)
     }
 
     fn selection_color(&self, _style: &Self::Style) -> iced::Color {
-        let color_settings = crate::settings::Settings::new();
+        let color_settings = crate::settings::Settings::get_or_init();
         crate::settings::hexcolor(&color_settings.color.surface)
     }
 }

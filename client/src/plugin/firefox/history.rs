@@ -7,7 +7,7 @@ pub struct HistoryPlugin {
 
 impl Plugin for HistoryPlugin {
     fn id() -> &'static str {
-        "brave_history"
+        "firefox_history"
     }
 
     fn priority() -> u32 {
@@ -32,20 +32,23 @@ impl Plugin for HistoryPlugin {
 
     fn update_entries(&mut self) -> anyhow::Result<()> {
         self.entries.clear();
-
-        let config_directory = crate::plugin::utils::config_directory()?;
-        let history_file_path =
-            format!("{config_directory}/BraveSoftware/Brave-Browser/Default/History");
-
+        let profile_path = crate::plugin::firefox::utils::profile_path()?;
+        let history_file_path = format!("{profile_path}/places.sqlite");
         let cache_directory = crate::plugin::utils::centerpiece_cache_directory()?;
-        let history_cache_file_path = format!("{cache_directory}/brave-history.sqlite");
+        let history_cache_file_path = format!("{cache_directory}/firefox-history.sqlite");
 
         std::fs::copy(history_file_path, &history_cache_file_path)
             .context("Error while creating cache directory")?;
 
-        let connection = sqlite::open(history_cache_file_path).unwrap();
-        let query = "SELECT title, url FROM urls ORDER BY visit_count DESC, last_visit_time DESC";
-        connection.execute(query).unwrap();
+        let connection = sqlite::open(history_cache_file_path)?;
+        let query = "
+            SELECT title, url
+            FROM moz_places
+            GROUP BY title
+            ORDER BY visit_count DESC";
+
+        connection.execute(query)?;
+
         let url_rows = connection
             .prepare(query)
             .unwrap()
@@ -54,12 +57,12 @@ impl Plugin for HistoryPlugin {
 
         self.entries = url_rows
             .map(|row| {
-                let title = row.read::<&str, _>("title");
+                let title = row.read::<Option<&str>, _>("title");
                 let url = row.read::<&str, _>("url");
 
                 crate::model::Entry {
                     id: url.to_string(),
-                    title: title.to_string(),
+                    title: title.unwrap_or(url).to_string(),
                     action: String::from("open"),
                     meta: String::from("History"),
                     command: None,
@@ -75,11 +78,11 @@ impl Plugin for HistoryPlugin {
         entry: crate::model::Entry,
         plugin_channel_out: &mut iced::futures::channel::mpsc::Sender<crate::Message>,
     ) -> anyhow::Result<()> {
-        std::process::Command::new("brave")
+        std::process::Command::new("firefox")
             .arg(&entry.id)
             .spawn()
             .context(format!(
-                "Failed to launch brave while activating entry with id '{}'.",
+                "Failed to launch firefox while activating entry with id '{}'.",
                 entry.id
             ))?;
 

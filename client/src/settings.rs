@@ -1,5 +1,6 @@
 use hex_color::HexColor;
 use serde::Deserialize;
+use std::sync::OnceLock;
 
 pub fn hexcolor(color: &str) -> iced::Color {
     let hex_col = HexColor::parse(color).unwrap_or_else(|_| {
@@ -15,6 +16,10 @@ pub fn hexcolor(color: &str) -> iced::Color {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_false() -> bool {
+    false
 }
 
 #[derive(Debug, Deserialize)]
@@ -78,6 +83,30 @@ impl Default for ClockPluginSettings {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct FirefoxBookmarksPluginSettings {
+    #[serde(default = "default_true")]
+    pub enable: bool,
+}
+
+impl Default for FirefoxBookmarksPluginSettings {
+    fn default() -> Self {
+        Self { enable: true }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FirefoxHistoryPluginSettings {
+    #[serde(default = "default_true")]
+    pub enable: bool,
+}
+
+impl Default for FirefoxHistoryPluginSettings {
+    fn default() -> Self {
+        Self { enable: true }
+    }
+}
+
+#[derive(Debug, Deserialize)]
 pub struct GitRepositoriesPluginSettings {
     #[serde(default = "default_true")]
     pub enable: bool,
@@ -127,6 +156,18 @@ impl Default for GitRepositoriesPluginSettings {
             zoxide: true,
             commands: default_commands(),
         }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GitmojiPluginSettings {
+    #[serde(default = "default_false")]
+    pub enable: bool,
+}
+
+impl Default for GitmojiPluginSettings {
+    fn default() -> Self {
+        Self { enable: false }
     }
 }
 
@@ -227,7 +268,13 @@ pub struct PluginSettings {
     #[serde(default)]
     pub clock: ClockPluginSettings,
     #[serde(default)]
+    pub firefox_bookmarks: FirefoxBookmarksPluginSettings,
+    #[serde(default)]
+    pub firefox_history: FirefoxHistoryPluginSettings,
+    #[serde(default)]
     pub git_repositories: GitRepositoriesPluginSettings,
+    #[serde(default)]
+    pub gitmoji: GitmojiPluginSettings,
     #[serde(default)]
     pub resource_monitor_battery: ResourceMonitorBatteryPluginSettings,
     #[serde(default)]
@@ -280,6 +327,11 @@ impl Settings {
             panic!();
         }
         config_result.unwrap()
+    }
+
+    pub fn get_or_init() -> &'static Self {
+        static SETTINGS: OnceLock<Settings> = OnceLock::new();
+        SETTINGS.get_or_init(Self::new)
     }
 }
 

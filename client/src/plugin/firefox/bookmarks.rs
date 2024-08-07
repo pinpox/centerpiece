@@ -1,21 +1,21 @@
 use crate::plugin::utils::Plugin;
 use anyhow::Context;
 
-pub struct HistoryPlugin {
+pub struct BookmarksPlugin {
     entries: Vec<crate::model::Entry>,
 }
 
-impl Plugin for HistoryPlugin {
+impl Plugin for BookmarksPlugin {
     fn id() -> &'static str {
-        "brave_history"
+        "firefox_bookmarks"
     }
 
     fn priority() -> u32 {
-        0
+        26
     }
 
     fn title() -> &'static str {
-        "󰋚 History"
+        "󰃃 Bookmarks"
     }
 
     fn entries(&self) -> Vec<crate::model::Entry> {
@@ -32,20 +32,25 @@ impl Plugin for HistoryPlugin {
 
     fn update_entries(&mut self) -> anyhow::Result<()> {
         self.entries.clear();
-
-        let config_directory = crate::plugin::utils::config_directory()?;
-        let history_file_path =
-            format!("{config_directory}/BraveSoftware/Brave-Browser/Default/History");
-
+        let profile_path = crate::plugin::firefox::utils::profile_path()?;
+        let bookmarks_file_path = format!("{profile_path}/places.sqlite");
         let cache_directory = crate::plugin::utils::centerpiece_cache_directory()?;
-        let history_cache_file_path = format!("{cache_directory}/brave-history.sqlite");
+        let bookmarks_cache_file_path = format!("{cache_directory}/firefox-bookmarks.sqlite");
 
-        std::fs::copy(history_file_path, &history_cache_file_path)
+        std::fs::copy(bookmarks_file_path, &bookmarks_cache_file_path)
             .context("Error while creating cache directory")?;
 
-        let connection = sqlite::open(history_cache_file_path).unwrap();
-        let query = "SELECT title, url FROM urls ORDER BY visit_count DESC, last_visit_time DESC";
-        connection.execute(query).unwrap();
+        let connection = sqlite::open(bookmarks_cache_file_path)?;
+        let query = "
+            SELECT moz_bookmarks.title, moz_places.url
+            FROM 
+        	    moz_bookmarks
+            	LEFT JOIN moz_places
+                ON moz_bookmarks.fk = moz_places.id
+            WHERE moz_bookmarks.type = 1
+            ORDER BY moz_places.visit_count DESC";
+
+        connection.execute(query)?;
         let url_rows = connection
             .prepare(query)
             .unwrap()
@@ -61,7 +66,7 @@ impl Plugin for HistoryPlugin {
                     id: url.to_string(),
                     title: title.to_string(),
                     action: String::from("open"),
-                    meta: String::from("History"),
+                    meta: String::from("Bookmarks"),
                     command: None,
                 }
             })
@@ -75,11 +80,11 @@ impl Plugin for HistoryPlugin {
         entry: crate::model::Entry,
         plugin_channel_out: &mut iced::futures::channel::mpsc::Sender<crate::Message>,
     ) -> anyhow::Result<()> {
-        std::process::Command::new("brave")
+        std::process::Command::new("firefox")
             .arg(&entry.id)
             .spawn()
             .context(format!(
-                "Failed to launch brave while activating entry with id '{}'.",
+                "Failed to launch firefox while activating entry with id '{}'.",
                 entry.id
             ))?;
 
